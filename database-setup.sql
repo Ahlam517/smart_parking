@@ -1,9 +1,4 @@
 -- Smart Parking Backend Database Setup
--- Run this script in your PostgreSQL database to create all required tables
-
--- Create database (uncomment if you need to create the database)
--- CREATE DATABASE smart_parking;
--- \c smart_parking;
 
 -- Users table
 CREATE TABLE IF NOT EXISTS users (
@@ -12,6 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   phone VARCHAR(20),
   password VARCHAR(255) NOT NULL,
+  is_verified BOOLEAN DEFAULT false,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -47,12 +43,33 @@ CREATE TABLE IF NOT EXISTS detection_logs (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Email verification codes
+CREATE TABLE IF NOT EXISTS email_verifications (
+  code VARCHAR(6) PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Password reset codes
+CREATE TABLE IF NOT EXISTS password_resets (
+  email VARCHAR(255) PRIMARY KEY,
+  code VARCHAR(6) NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Token blacklist for logout
+CREATE TABLE IF NOT EXISTS token_blacklist (
+  id SERIAL PRIMARY KEY,
+  token TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Insert default parking lot
 INSERT INTO parking_lots (id, name, description) 
 VALUES (1, 'Main Parking Lot', 'Default parking lot for the smart garage system')
 ON CONFLICT (id) DO NOTHING;
 
--- Insert parking slots from parking3.json data
+-- Insert parking slots
 INSERT INTO parking_slots (parking_lot_id, label, x1, y1, x2, y2) VALUES
 (1, '1', 1088.0, 432.0, 1151.0, 487.0),
 (1, '2', 1039.0, 433.0, 1102.0, 483.0),
@@ -85,11 +102,8 @@ ON CONFLICT (parking_lot_id, label) DO UPDATE SET
   x2 = EXCLUDED.x2,
   y2 = EXCLUDED.y2;
 
--- Create indexes for better performance
+-- Indexes
 CREATE INDEX IF NOT EXISTS idx_parking_slots_lot_id ON parking_slots(parking_lot_id);
 CREATE INDEX IF NOT EXISTS idx_parking_slots_label ON parking_slots(label);
 CREATE INDEX IF NOT EXISTS idx_detection_logs_lot_id ON detection_logs(parking_lot_id);
 CREATE INDEX IF NOT EXISTS idx_detection_logs_created_at ON detection_logs(created_at);
-
--- Display success message
-SELECT 'Database setup completed successfully!' as message;
